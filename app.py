@@ -110,5 +110,5 @@ def launch_ui():
 if __name__ == "__main__":
     download_knowledge_base_if_not_exists()
     Settings.llm = OpenAI(api_key=api_key, temperature=0, model="gpt-4o-mini")
-Settings.embed_model = OpenAIEmbedding(api_key=api_key, model="text-embedding-3-small")
+    Settings.embed_model = OpenAIEmbedding(api_key=api_key, model="text-embedding-3-small")
     launch_ui()
