@@ -102,7 +102,7 @@ def generate_completion(query, history, memory):
 
 def launch_ui():
     with gr.Blocks(title="AI Tutor 🤖", fill_height=True) as demo:
-        memory_state = gr.State(ChatSummaryMemoryBuffer.from_defaults(token_limit=120000))
+        memory_state = {"memory": ChatSummaryMemoryBuffer.from_defaults(token_limit=120000)}
         chatbot = gr.Chatbot(
             placeholder="<strong>AI Tutor 🤖: Ask me anything about AI!</strong><br>",
             show_label=False,
@@ -111,7 +111,7 @@ def launch_ui():
         gr.ChatInterface(
             fn=generate_completion,
             chatbot=chatbot,
-            additional_inputs=(memory_state)
+            additional_inputs=[gr.State(memory_state)]
         )
         demo.queue(default_concurrency_limit=64)
         demo.launch(debug=True, share=True)  # ✅ Tu actives ici le lien public
