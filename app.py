@@ -113,10 +113,10 @@ def launch_ui():
             additional_inputs=[memory_state]
         )
         demo.queue(default_concurrency_limit=64)
-        demo.launch(debug=True, share=False)
+        demo.launch(debug=True, share=True)  # ✅ Tu actives ici le lien public
 
 if __name__ == "__main__":
     download_knowledge_base_if_not_exists()
     Settings.llm = OpenAI(api_key=api_key, temperature=0, model="gpt-4o-mini")
     Settings.embed_model = OpenAIEmbedding(api_key=api_key, model="text-embedding-3-small")
-    launch_ui(share=true)
+    launch_ui()  # ✅ sans argument ici
