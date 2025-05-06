@@ -73,13 +73,14 @@ def get_tools(db_collection="ai_tutor_knowledge"):
 def generate_completion(query, history, memory):
     try:
         logging.info(f"User query: {query}")
+        logging.info(f"Type mémoire: {type(memory)} / contenu: {memory}")
 
-        chat_list = memory()
+        chat_list = memory.get()
         if len(chat_list) != 0:
             user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
             if len(user_index) > len(history):
                 chat_list = chat_list[:user_index[user_index[-1]]]
-                memory(chat_list)
+                memory.get(chat_list)
 
         tools = get_tools()
         agent = OpenAIAgent.from_tools(
@@ -110,7 +111,7 @@ def launch_ui():
         gr.ChatInterface(
             fn=generate_completion,
             chatbot=chatbot,
-            additional_inputs=[memory_state]
+            additional_inputs=(memory_state)
         )
         demo.queue(default_concurrency_limit=64)
         demo.launch(debug=True, share=True)  # ✅ Tu actives ici le lien public
