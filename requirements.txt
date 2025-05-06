@@ -1,0 +1,8 @@
+gradio==4.44.1
+llama-index==0.12.30
+llama-index-llms-openai
+llama-index-embeddings-openai
+llama-index-vector-stores-chroma
+chromadb
+huggingface_hub
+python-dotenv
