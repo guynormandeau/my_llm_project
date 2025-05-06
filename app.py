@@ -17,6 +17,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from llama_index.core.llms import MessageRole
 
+# Load environment
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -33,12 +34,13 @@ comprehensive answers, ideally structured in multiple paragraphs, drawing from t
 Should the tool response lack information on the queried topic, politely inform the user that the question transcends the bounds of your current knowledge base, citing the absence of relevant content in the tool's documentation. 
 At the end of your answers, always invite the students to ask deeper questions about the topic if they have any.
 Do not refer to the documentation directly, but use the information provided within it to answer questions. If code is provided in the information, share it with the students. It's important to provide complete code blocks so 
-they can execute the code when they copy and paste them. Make sure to format your answers in Markdown format, including code blocks and snippets."""  # Copie ici le prompt complet
+they can execute the code when they copy and paste them. Make sure to format your answers in Markdown format, including code blocks and snippets."""
 
 TEXT_QA_TEMPLATE = """You must answer only related to AI, ML, Deep Learning and related concepts queries.
 Always leverage the retrieved documents to answer the questions, don't answer them on your own.
 If the query is not relevant to AI, say that you don't know the answer."""
 
+# Download knowledge base if missing
 def download_knowledge_base_if_not_exists():
     if not os.path.exists("data/ai_tutor_knowledge"):
         os.makedirs("data/ai_tutor_knowledge")
@@ -48,6 +50,7 @@ def download_knowledge_base_if_not_exists():
             repo_type="dataset",
         )
 
+# Define retriever tool
 def get_tools(db_collection="ai_tutor_knowledge"):
     db = chromadb.PersistentClient(path=f"data/{db_collection}")
     chroma_collection = db.get_or_create_collection(db_collection)
@@ -70,54 +73,60 @@ def get_tools(db_collection="ai_tutor_knowledge"):
         )
     ]
 
-def generate_completion(query, history, state):
-    try:
-        memory = state["memory"]  # on extrait l’objet mémoire
-        chat_list = memory.get()
+# Factory to generate a function with memory
+def generate_completion_factory(memory):
+    def generate_completion(query, history):
+        try:
+            chat_list = memory.get()
+            if len(chat_list) != 0:
+                user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
+                if len(user_index) > len(history):
+                    chat_list = chat_list[:user_index[user_index[-1]]]
+                    memory.set(chat_list)
 
-        if len(chat_list) != 0:
-            user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
-            if len(user_index) > len(history):
-                chat_list = chat_list[:user_index[user_index[-1]]]
-                memory.set(chat_list)
+            tools = get_tools()
+            agent = OpenAIAgent.from_tools(
+                llm=Settings.llm,
+                memory=memory,
+                tools=tools,
+                system_prompt=PROMPT_SYSTEM_MESSAGE
+            )
 
-        tools = get_tools()
-        agent = OpenAIAgent.from_tools(
-            llm=Settings.llm,
-            memory=memory,
-            tools=tools,
-            system_prompt=PROMPT_SYSTEM_MESSAGE
-        )
+            completion = agent.stream_chat(query)
+            answer = ""
+            for token in completion.response_gen:
+                answer += token
+                yield answer
 
-        completion = agent.stream_chat(query)
-        answer = ""
-        for token in completion.response_gen:
-            answer += token
-            yield answer
+        except Exception as e:
+            logging.error(f"Error during generate_completion: {e}")
+            yield f"❌ Error: {e}"
 
-    except Exception as e:
-        logging.error(f"Error during generate_completion: {e}")
-        yield f"❌ Error: {e}"
+    return generate_completion
 
+# Gradio UI
 def launch_ui():
+    memory = ChatSummaryMemoryBuffer.from_defaults(token_limit=120000)
+    generate_completion = generate_completion_factory(memory)
+
     with gr.Blocks(title="AI Tutor 🤖", fill_height=True) as demo:
-        memory_buffer = ChatSummaryMemoryBuffer.from_defaults(token_limit=120000)
-        memory_state = gr.State({"memory": memory_buffer})  # dictionnaire
         chatbot = gr.Chatbot(
             placeholder="<strong>AI Tutor 🤖: Ask me anything about AI!</strong><br>",
             show_label=False,
             show_copy_button=True
         )
+
         gr.ChatInterface(
             fn=generate_completion,
-            chatbot=chatbot,
-            additional_inputs=[gr.State(memory_state)]
+            chatbot=chatbot
         )
-        demo.queue(default_concurrency_limit=64)
-        demo.launch(debug=True, share=True)  # ✅ Tu actives ici le lien public
 
+        demo.queue(default_concurrency_limit=64)
+        demo.launch(debug=True)  # `share=True` inutile ici
+
+# Init
 if __name__ == "__main__":
     download_knowledge_base_if_not_exists()
     Settings.llm = OpenAI(api_key=api_key, temperature=0, model="gpt-4o-mini")
     Settings.embed_model = OpenAIEmbedding(api_key=api_key, model="text-embedding-3-small")
-    launch_ui()  # ✅ sans argument ici
+    launch_ui()
