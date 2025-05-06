@@ -71,29 +71,33 @@ def get_tools(db_collection="ai_tutor_knowledge"):
     ]
 
 def generate_completion(query, history, memory):
-    chat_list = memory.get()
-    if len(chat_list) != 0:
-        user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
-        if len(user_index) > len(history):
-            chat_list = chat_list[:user_index[user_index[-1]]]
-            memory.set(chat_list)
+    try:
+        logging.info(f"User query: {query}")
 
-    tools = get_tools()
-    agent = OpenAIAgent.from_tools(
-        llm=Settings.llm,
-        memory=memory,
-        tools=tools,
-        system_prompt=PROMPT_SYSTEM_MESSAGE
-    )
-    completion = agent.stream_chat(query)
-    answer = ""
-    for token in completion.response_gen:
-        answer += token
-        yield answer
+        chat_list = memory.get()
+        if len(chat_list) != 0:
+            user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
+            if len(user_index) > len(history):
+                chat_list = chat_list[:user_index[user_index[-1]]]
+                memory.set(chat_list)
+
+        tools = get_tools()
+        agent = OpenAIAgent.from_tools(
+            llm=Settings.llm,
+            memory=memory,
+            tools=tools,
+            system_prompt=PROMPT_SYSTEM_MESSAGE
+        )
+
+        completion = agent.stream_chat(query)
+        answer = ""
+        for token in completion.response_gen:
+            answer += token
+            yield answer
 
     except Exception as e:
         logging.error(f"Error during generate_completion: {e}")
-    yield f"⚠️ Error: {e}"
+        yield f"⚠️ Error: {e}"
 
 def launch_ui():
     with gr.Blocks(title="AI Tutor 🤖", fill_height=True) as demo:
