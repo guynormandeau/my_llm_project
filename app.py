@@ -74,12 +74,12 @@ def generate_completion(query, history, memory):
     try:
         logging.info(f"User query: {query}")
 
-        chat_list = memory.get()
+        chat_list = memory()
         if len(chat_list) != 0:
             user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
             if len(user_index) > len(history):
                 chat_list = chat_list[:user_index[user_index[-1]]]
-                memory.set(chat_list)
+                memory(chat_list)
 
         tools = get_tools()
         agent = OpenAIAgent.from_tools(
@@ -119,4 +119,4 @@ if __name__ == "__main__":
     download_knowledge_base_if_not_exists()
     Settings.llm = OpenAI(api_key=api_key, temperature=0, model="gpt-4o-mini")
     Settings.embed_model = OpenAIEmbedding(api_key=api_key, model="text-embedding-3-small")
-    launch_ui()
+    launch_ui(share=true)
