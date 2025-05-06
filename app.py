@@ -75,12 +75,12 @@ def generate_completion(query, history, memory):
         logging.info(f"User query: {query}")
         logging.info(f"Type mémoire: {type(memory)} / contenu: {memory}")
 
-        chat_list = memory.get()
+        chat_list = memory["value"].get()
         if len(chat_list) != 0:
             user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
             if len(user_index) > len(history):
                 chat_list = chat_list[:user_index[user_index[-1]]]
-                memory.get(chat_list)
+                memory["value"].set(chat_list)
 
         tools = get_tools()
         agent = OpenAIAgent.from_tools(
