@@ -91,6 +91,10 @@ def generate_completion(query, history, memory):
         answer += token
         yield answer
 
+    except Exception as e:
+        logging.error(f"Error during generate_completion: {e}")
+    yield f"⚠️ Error: {e}"
+
 def launch_ui():
     with gr.Blocks(title="AI Tutor 🤖", fill_height=True) as demo:
         memory_state = gr.State(ChatSummaryMemoryBuffer.from_defaults(token_limit=120000))
