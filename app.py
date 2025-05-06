@@ -70,22 +70,21 @@ def get_tools(db_collection="ai_tutor_knowledge"):
         )
     ]
 
-def generate_completion(query, history, memory):
+def generate_completion(query, history, state):
     try:
-        logging.info(f"User query: {query}")
-        logging.info(f"Type mémoire: {type(memory)} / contenu: {memory}")
+        memory = state["memory"]  # on extrait l’objet mémoire
+        chat_list = memory.get()
 
-        chat_list = memory.value.get()
         if len(chat_list) != 0:
             user_index = [i for i, msg in enumerate(chat_list) if msg.role == MessageRole.USER]
             if len(user_index) > len(history):
                 chat_list = chat_list[:user_index[user_index[-1]]]
-                memory.value.set(chat_list)
+                memory.set(chat_list)
 
         tools = get_tools()
         agent = OpenAIAgent.from_tools(
             llm=Settings.llm,
-            memory = memory.value,
+            memory=memory,
             tools=tools,
             system_prompt=PROMPT_SYSTEM_MESSAGE
         )
@@ -98,11 +97,12 @@ def generate_completion(query, history, memory):
 
     except Exception as e:
         logging.error(f"Error during generate_completion: {e}")
-        yield f"⚠️ Error: {e}"
+        yield f"❌ Error: {e}"
 
 def launch_ui():
     with gr.Blocks(title="AI Tutor 🤖", fill_height=True) as demo:
-        memory_state = {"memory": ChatSummaryMemoryBuffer.from_defaults(token_limit=120000)}
+        memory_buffer = ChatSummaryMemoryBuffer.from_defaults(token_limit=120000)
+        memory_state = gr.State({"memory": memory_buffer})  # dictionnaire
         chatbot = gr.Chatbot(
             placeholder="<strong>AI Tutor 🤖: Ask me anything about AI!</strong><br>",
             show_label=False,
